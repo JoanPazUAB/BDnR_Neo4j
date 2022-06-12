@@ -1,0 +1,66 @@
+CONSULTES PROJECTE Neo4j 
+Consultes de la 1 fins la 5
+
+1.Dels padró de 1866 de Castellví de Rosanes (CR), retorna el número d'habitants i la llista de noms. Elimina duplicats i nan. 
+
+match (h:Habitatge)<-[:VIU]-(i:Individu)
+where h.any_padro = 1866 and toUpper(h.municipi) = 'CR' and i.name <> 'null'
+return count(i.name) as c, collect(distinct(i.name)) as names
+
+
+2.Dels padrons de Sant Feliu de Llobregat (SFLL) d'abans de l'any 1840 (no inclòs), retorna la població, l'any del padró i la llista d'identificadors dels habitatges de cada padró. Ordena els resultats per l'any de padró.
+
+match (i:Individu)-[:VIU]->(h:Habitatge)
+where toUpper(h.municipi) = 'SFLL' and h.any_padro < 1840
+return h.any_padro as any, collect(distinct(h.id_llar)) as id_llars,h.any_padro 
+order by h.any_padro asc
+
+
+3.Retorna el nom de les persones que vivien al mateix habitatge que "rafel marti" (no té segon cognom) segons el padró de 1838 de Sant Feliu de Llobregat (SFLL). Retorna la informació en mode graf i mode llista.
+
+3.1.	Format de Llista:
+	3.1.1.	Consulta:
+		match(i:Individu)-[:VIU]->(h:Habitatge)<-[:VIU]-(i2:Individu)
+		where toLower(i.name) = 'rafel' and toLower(i.surname) = 'marti' and
+		toUpper(h.municipi) = 'SFLL' and h.any_padro = 1838  
+		return i.name as nom,collect(i2.name) as convivents
+
+	3.1.2.	Subconsulta:
+		match(i:Individu)-[:VIU]->(h:Habitatge)
+		where toLower(i.name) = 'rafel' and toLower(i.surname) = 'marti' and 
+		toUpper(h.municipi) = 'SFLL'  and h.any_padro = 1838 
+		match (i2:Individu)-[:VIU]->(h)
+		where i2.personId <> i.personId
+		with i.name as name, collect(i2.name) as names
+		return name, names
+
+3.2.	Format de Graf:
+	3.2.1.	Consulta:
+		match(i:Individu)-[:VIU]->(h:Habitatge)<-[:VIU]-(i2:Individu)
+		where toLower(i.name) = 'rafel' and 
+		toLower(i.surname) = 'marti' and 
+		toUpper(h.municipi) = 'SFLL' and h.any_padro = 1838
+		return i,i2,h
+
+	3.2.2.	Subconsulta:
+		match(i:Individu)-[:VIU]->(h:Habitatge)<-[:VIU]-(i2:Individu)
+		where toLower(i.name) = 'rafel' and 
+		toLower(i.surname) = 'marti' and 
+		toUpper(i.location) = 'SFLL' and 
+		i.year = 1838 and i2.year = 1838  and h.any_padro = 1838
+		return i,i2,h
+
+
+4.Retorna totes les aparicions de "Miguel ballester". Fes servir la relació SAME_AS per poder retornar totes les instancies, independentment de si hi ha variacions lèxiques (ex. diferents formes d'escriure el seu nom/cognoms). Mostra la informació en forma de subgraf.
+
+match (i:Individu)-[:SAME_AS]->(i2:Individu)
+where (toLower(i.name) = 'miguel' and toLower(i.surname) = 'ballester') or (toLower(i2.name) = 'miguel' and toLower(i2.surname) = 'ballester')
+return i,i2
+
+
+5.Mostra totes les persones relacionades amb "antonio farran". Mostra la informació en forma de taula: el nom, cognom1, cognom2, i tipus de relació.
+
+match (i:Individu)<-[rel]->(i2:Individu)
+where toLower(i.name) = 'antonio' and toLower(i.surname) = 'farran'
+return i2.name as nom, i2.surname as cognom1, i2.second_surname as cognom2, 
+type(rel) as relacio

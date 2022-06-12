@@ -1,0 +1,62 @@
+EXERCICI 3
+a) Estudi de les components connexes (cc) i de l’estructura de les component en funció de la seva mida. A continuació uns indiquem algunes consultes que podeu fer per explorar les dades:
+
+   
+   call gds.graph.create('graph_3a_ind',['Individu'],'VIU')
+ 
+    call gds.graph.create('graph_3a_ind_hab',['Individu','Habitatge'],'VIU')
+ 
+    call gds.graph.create.cypher('graph_3a_1889_d',
+        'match (h:Habitatge) where h.any_padro = 1889 return h.id_llar as id',
+        'match (i:Individu)-[:VIU]->(h) return h.id_llar as source, i.personId as target',
+        {validateRelationships:False}
+             )
+
+    
+    
+    -Taula que mostra les comunitats entre individus dins la mateixa bombolla familiar. (mostrem una petita mostra de les comunitats)
+
+        CALL gds.wcc.stream('graph_3a_ind')
+        YIELD componentId, nodeId
+        RETURN componentId, collect(nodeId) AS nodes
+        
+    -Taula agrupant els resultats segons si la mida de la cc és 2.
+
+        CALL gds.wcc.stream('graph_3a_ind_hab')
+        YIELD componentId, nodeId
+        with componentId, collect(nodeId) AS nodes, size(collect(nodeId)) as mida
+        where mida = 2
+        return nodes
+
+    -Saber quants habitatges ha hagut a l’any 1889.
+        CALL gds.wcc.stream('graph_3a_1889_d')
+        YIELD componentId, nodeId
+        with componentId, collect(nodeId) AS nodes
+        return count(nodes)
+
+
+
+b) Semblança entre els nodes. Ens interessa saber quins nodes són semblants com a pas previ a identificar els individus que són el mateix (i unirem amb una aresta de tipus SAME_AS). Abans de fer aquest anàlisi: 
+
+    - Determineu els habitatges que són els mateixos al llarg dels anys. Afegiu una aresta amb nom “MATEIX_HAB“ entre aquests habitatges. Per evitar arestes duplicades feu que la aresta apunti al habitatge amb any de padró més petit. 
+
+        match (h1:Habitatge),(h2:Habitatge)
+        where h1.carrer = h2.carrer and h1.numero = h2.numero and h1.municipi = h2.municipi and h1.carrer <> "null" and h2.carrer <> "null" and h1.numero <> "null" and h2.numero <> "null" and h1.any_padro < h2.any_padro 
+        WITH h2,h1 ORDER BY h1.AnyPadro
+        merge(h1)<-[:MATEIX_HAB]-(h2)
+
+
+    - Creeu un graf en memòria que inclogui els nodes Individu i Habitatge i les relacions VIU, FAMILIA, MATEIX_HAB que acabeu de crear. 
+
+        CALL gds.graph.create("habitatges_graph", ["Habitatge", "Individu"], ["FAMILIA", "VIU",
+        "MATEIX_HAB"])
+
+
+
+    - Calculeu la similaritat entre els nodes del graf que acabeu de crear, escriviu el resultat de nou a la base de dades i interpreteu els resultats obtinguts.
+
+        call gds.nodeSimilarity.write('habitatges_graph', {
+        writeRelationshipType: 'SIMILAR',
+        writeProperty: 'score'
+        })
+        yield nodesCompared, relationshipsWritten

@@ -1,0 +1,48 @@
+PROJECTE Neo4j 
+Consultes 6 - 10
+
+6.Llisteu totes les relacions familiars que hi ha.
+
+match (i:Individu)-[r:FAMILIA]->(i2:Individu) 
+where r.relacio_harmonitzada <> 'null'
+return distinct(r.relacio_harmonitzada)
+
+
+7.Identifiqueu els nodes que representen el mateix habitatge (carrer i numero) al llarg dels anys de Sant Feliu del Llobregat (SFLL). Mostreu el resultat dels habitatges que tingueu totes dues informacions (carrer i numero), el nombre total d’habitatges, el llistat d’anys dels padrons i el llistat de les Ids de les llars. Ordeneu de més a menys segons el total d’habitatges i mostreu-ne els 10 primers.
+
+match (h:Habitatge)
+where toUpper(h.municipi) = 'SFLL'
+return h.carrer as carrer, h.numero as numero, 
+size(collect(distinct(h.any_padro))) as compt, 
+collect(distinct(h.any_padro)) as anys, collect(h.id_llar) as ids 
+order by size(collect(distinct(h.any_padro))) desc 
+limit 10
+
+
+8.Mostreu les famílies de Castellví de Rosanes amb més de 3 fills. Mostreu el nom i cognoms del cap de família i el nombre de fills. Ordeneu-les pel nombre de fills fins a un límit de 20, de més a menys.
+
+match (h:Habitatge{municipi:"CR"})-[:VIU]-(i:Individu)-[r:FAMILIA]-(i2:Individu)
+where toLower(r.relacio_harmonitzada) = "fill" or toLower(r.relacio_harmonitzada) = "filla"
+With collect(i2) as fills, i
+where size(fills)>3
+return i.name, i.surname, i.second_surname, size(fills) as num_fills
+order by num_fills desc limit 20
+
+
+9.Mitja de fills a Sant Feliu del Llobregat l’any 1881 per família. Mostreu el total de fills, el nombre d’habitatges i la mitja.
+
+match(h:Habitatge) 
+where h.any_padro = 1881 and h.municipi  = 'SFLL' 
+with count(distinct(h)) as num
+match(h1:Habitatge)<-[:VIU]-(i:Individu)-[r:FAMILIA]->(:Individu)
+where h1.any_padro = 1881 and h1.municipi = 'SFLL' and r.relacio_harmonitzada starts with 'fill'
+return  count(i) as total_fills, num as num_llars, toFloat(count(i))/toFloat(num) as Mitjana
+
+
+10.Per cada any que hi ha a la base de dades, quin és el carrer amb menys habitants de Sant Feliu de Llobregat?
+
+match (h:Habitatge)-[:VIU]-(i:Individu)
+where toUpper(h.municipi) = "SFLL"
+with h.carrer as carrer, count(*) as num, h.any_padro as any_padro order by
+any_padro,num 
+return any_padro,collect(carrer)[0] as carrer,collect(num)[0] as num_habitants
